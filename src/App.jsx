@@ -1,73 +1,36 @@
 import { useState } from "react";
 import confetti from "canvas-confetti";
 
-// establece los turnos
-const TURNOS = {
-  X: "X",
-  O: "O",
-};
-
-// Establece lo que tiene cada cuadrado del tablero
-const Square = ({ children, isSelected, actualizaTablero, index }) => {
-  const className = `square ${isSelected ? "is-selected" : ""}`;
-
-  const handleClick = () => {
-    actualizaTablero(index);
-  };
-
-  return (
-    <div onClick={handleClick} className={className}>
-      {children}
-    </div>
-  );
-};
-
-const CombinacionesGanadoras = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6],
-];
+// Importar componentes
+import { Square } from "./components/Square.jsx";
+import { TURNOS } from "./constants.js";
+import { comprobarGanador, comprobarFinalJuego } from "./logic/board.js";
+import { GanadorModal } from "./components/GanadorModal.jsx";
+import { guardarJuego, resetJuegoStorage } from "./logic/storeage/index.js";
 
 function App() {
   // Rellena el tablero
-  const [tablero, setTablero] = useState(Array(9).fill(null));
+  const [tablero, setTablero] = useState(() => {
+    const tableroDesdeStoreage = window.localStorage.getItem("tablero");
+    if (tableroDesdeStoreage) return JSON.parse(tableroDesdeStoreage);
+    return Array(9).fill(null);
+  });
+
   // establece los turnos que tocan
-  const [turno, setTurn] = useState(TURNOS.X);
+  const [turno, setTurno] = useState(() => {
+    const turnoDesdeStoreage = window.localStorage.getItem("turno");
+    return turnoDesdeStoreage ?? TURNOS.X;
+  });
+
   // null si no tiene ganador
   const [ganador, setGanador] = useState(null);
 
-  // Comprobar ganador
-  const comprobarGanador = (tableroAChequear) => {
-    for (const combo of CombinacionesGanadoras) {
-      const [a, b, c] = combo;
-
-      if (
-        // Si existe
-        tableroAChequear[a] &&
-        // Si son iguales
-        tableroAChequear[a] == tableroAChequear[b] &&
-        tableroAChequear[a] == tableroAChequear[c]
-      ) {
-        // Devuelve el ganador
-        return tableroAChequear[a];
-      }
-    }
-    return null;
-  };
-
   const resetJuego = () => {
     setTablero(Array(9).fill(null));
-    setTurn(TURNOS.X);
+    setTurno(TURNOS.X);
     setGanador(null);
-  };
 
-  const comprobarFinalJuego = (nuevoTablero) => {
-    return nuevoTablero.every((square) => square !== null);
+    resetJuegoStorage();
   };
 
   // Actualiza el tablero despuesd e cada click
@@ -80,7 +43,10 @@ function App() {
     setTablero(nuevoTablero);
 
     const nuevoTurno = turno == TURNOS.X ? TURNOS.O : TURNOS.X;
-    setTurn(nuevoTurno);
+    setTurno(nuevoTurno);
+
+    // Guardar partida
+    guardarJuego({ tablero: nuevoTablero, turno: nuevoTurno });
 
     // Comprobar el ganador
     const nuevoGanador = comprobarGanador(nuevoTablero);
@@ -117,19 +83,7 @@ function App() {
           <Square isSelected={turno == TURNOS.O}>{TURNOS.O}</Square>
         </section>
 
-        {ganador !== null && (
-          <section className="winner">
-            <div className="text">
-              <h2>{ganador == false ? "Empate" : "Ganó:"}</h2>
-              <header className="win">
-                {ganador && <Square>{ganador}</Square>}
-              </header>
-              <footer>
-                <button onClick={resetJuego}>Empezar de nuevo</button>
-              </footer>
-            </div>
-          </section>
-        )}
+        <GanadorModal resetJuego={resetJuego} ganador={ganador} />
       </main>
     </>
   );
